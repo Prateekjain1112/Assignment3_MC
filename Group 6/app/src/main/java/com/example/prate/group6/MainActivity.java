@@ -157,6 +157,10 @@ public class MainActivity extends Activity implements SensorEventListener {
                 graph1.removeAllSeries();// remove 3 series
                 graph2.removeAllSeries();
                 graph3.removeAllSeries();
+                svm_ecl svmobj=new svm_ecl();
+                svmobj.create_dataset();
+                svmobj.svmTrain();
+                svmobj.svmTest();
 
 
             }

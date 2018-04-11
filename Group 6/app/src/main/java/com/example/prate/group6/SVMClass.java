@@ -37,6 +37,16 @@ public class svm_ecl {
                 param.eps = 0.001;
 
                 model = svm.svm_train(prob, param);
+		double[] target = new double[train_label.length];
+		svm.svm_cross_validation(prob, param, 4, target);
+		double correctCounter = 0;
+		for (int i = 0; i < target.length; i++) {
+		if (target[i] == train_label[i]) {
+		correctCounter++;
+                }
+            }
+            double cross_val=(correctCounter*100)/train_label.length;
+            System.out.println("Cross_val"+cross_val);
 
                 //return model;
         }

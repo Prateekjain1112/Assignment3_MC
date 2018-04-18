@@ -3,6 +3,7 @@ package com.example.prate.group6;
 import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase;
@@ -49,8 +50,15 @@ public class MainActivity extends Activity implements SensorEventListener {
     String sex="";
     String temp="";
 
+    double train[][],test[][],train_label[],test_label[];
+    int train_index=0,test_index=0;
+    ArrayList<Float> tempX = new ArrayList<Float>();
+    ArrayList<Float> tempY = new ArrayList<Float>();
+    ArrayList<Float> tempZ = new ArrayList<Float>();
 
-    Button b1, b2,b3,b4;
+
+
+    Button b1, b2,b3,b4,b5,b6;
     int flag = 0;
     LineGraphSeries<DataPoint> series1;
     LineGraphSeries<DataPoint> series2;
@@ -129,7 +137,13 @@ public class MainActivity extends Activity implements SensorEventListener {
         viewport3.setYAxisBoundsManual(true);
         viewport3.setMinY(-40);
         viewport3.setMaxY(40);
-        //viewport.setScrollable(true);
+
+
+        //instantiating training and test arrays
+        train = new double[48][150];
+        test = new double [16][150];
+        train_label = new double[48];
+        test_label = new double[16];
 
 
         try {
@@ -152,7 +166,6 @@ public class MainActivity extends Activity implements SensorEventListener {
         b1.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 // Do something in response to button click
-                createDB();
                 flag = 0;
                 graph1.removeAllSeries();// remove 3 series
                 graph2.removeAllSeries();
@@ -260,6 +273,43 @@ public class MainActivity extends Activity implements SensorEventListener {
                 showLast10();                                                                      //function call to display last 10 seconds
             }
         });
+
+
+
+        //Button to create db, test and training data set
+        b5 = (Button) findViewById(R.id.button_createDB);
+        b5.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v)
+            {
+                createDB();
+            }
+        });
+
+        //Button to create test and training data set and train on SVM
+        b6 = (Button) findViewById(R.id.button_train);
+        b6.setVisibility(View.INVISIBLE);
+        b6.setOnClickListener(new View.OnClickListener(){
+            public void onClick(View v)
+            {
+
+                Thread t=new Thread() {
+                    @Override
+                    public void run() {
+                        Intent intent = new Intent(MainActivity.this, SVM.class);
+                        Bundle b = new Bundle();
+                        b.putSerializable("train_data", train);
+                        b.putSerializable("train_label", train_label);
+                        b.putSerializable("test_data", test);
+                        b.putSerializable("test_label",test_label);
+                        intent.putExtras(b);
+                        startActivity(intent);
+                    }
+                };
+                t.start();
+
+            }
+        });
+
     }
 
 
@@ -483,7 +533,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 "AccelX_47 float, AccelY_47 float, AccelZ_47 float, " +
                 "AccelX_48 float, AccelY_48 float, AccelZ_48 float, " +
                 "AccelX_49 float, AccelY_49 float, AccelZ_49 float, " +
-                "AccelX_50 float, AccelY_50 float, AccelZ_50 float, Label varchar(15));";
+                "AccelX_50 float, AccelY_50 float, AccelZ_50 float, Label INTEGER);";
         db2.execSQL(query);
         try {
             db.beginTransaction();
@@ -491,16 +541,14 @@ public class MainActivity extends Activity implements SensorEventListener {
 
             String[] columns = new String[]{"x", "y", "z"};
 
-
-            //int rowCount = cursor.getCount();
-            ArrayList<Float> tempX = new ArrayList<Float>();
-            ArrayList<Float> tempY = new ArrayList<Float>();
-            ArrayList<Float> tempZ = new ArrayList<Float>();
             String[] label = new String[]{"walking","jumping","running"};
 
 
 
             int position = 1,counter=1;
+
+
+
             //Loop to access rows of the table
             for (int i = 0; i < 3; i++) {
 
@@ -568,9 +616,43 @@ public class MainActivity extends Activity implements SensorEventListener {
                                 tempX.get(47) + ", " + tempY.get(47) + ", " + tempZ.get(47) + "," +
                                 tempX.get(48) + ", " + tempY.get(48) + ", " + tempZ.get(48) + "," +
                                 tempX.get(49) + ", " + tempY.get(49) + ", " + tempZ.get(49) + ", '"+
-                                label[i]+"');";
+                                (i+1)+"');";
 
                         db2.execSQL(query);
+
+
+                        //Creating the training set and test set
+                            int j=0;
+                            if(counter>=((i*20)+1)&&counter<=((i*20)+16))
+                            {   System.out.print("Training"+train_index+"-->  ");
+                                for(int k=0;k<50;k++)
+                                {
+                                    train[train_index][j]=tempX.get(k);
+                                    train[train_index][j+1]=tempY.get(k);
+                                    train[train_index][j+2]=tempZ.get(k);
+                                    System.out.print(train[train_index][j]+" "+train[train_index][j+1]+" "+train[train_index][j+2]+" ");
+                                    j=j+3;
+                                }
+                                train_label[train_index]=i+1;
+                                System.out.println(train_label[train_index]);
+                                train_index++;
+                            }
+                            else
+                            {   j=0;
+                                System.out.print("Testing"+test_index+"-->  ");
+                                for(int k=0;k<50;k++)
+                                {
+                                    test[test_index][j]=tempX.get(k);
+                                    test[test_index][j+1]=tempY.get(k);
+                                    test[test_index][j+2]=tempZ.get(k);
+                                    System.out.print(test[test_index][j]+" "+test[test_index][j+1]+" "+test[test_index][j+2]+" ");
+                                    j=j+3;
+
+                                }
+                                test_label[test_index]=i+1;
+                                System.out.println(test_label[test_index]);
+                                test_index++;
+                            }
                         position = 0;
                         counter++;
                         tempX = new ArrayList<Float>();
@@ -581,6 +663,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                     position++;
                 }
             }
+            b6.setVisibility(View.VISIBLE);
             cursor.close();
             db.setTransactionSuccessful(); //commit your changes
 
